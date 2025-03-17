@@ -1,7 +1,8 @@
-from fastapi import FastAPI, status, HTTPException
+from fastapi import FastAPI, status, HTTPException, Depends
 from pydantic import BaseModel
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from sqlalchemy.orm import Session
 from . import models
 from .database import engine, SessionLocal
 
@@ -40,10 +41,6 @@ except Exception as error:
     conn.close()
 
 
-def find_post(id):
-    return next(filter(lambda x: x["id"] == id, my_posts), None)
-
-
 def raise_exception(status_code, detail):
     raise HTTPException(
         status_code=status_code,
@@ -51,14 +48,13 @@ def raise_exception(status_code, detail):
     )
 
 
-my_posts = [
-    {"title": "This is a title 1", "content": "This is a content 1", "id": 1},
-    {"title": "This is a title 2", "content": "This is a content 2", "id": 2},
-]
-
-
 @app.get("/")
 def root():
+    return {"message": "This is fast api project"}
+
+
+@app.get("/testing")
+def test_posts(db: Session = Depends(get_db)):
     return {"message": "This is fast api project"}
 
 
