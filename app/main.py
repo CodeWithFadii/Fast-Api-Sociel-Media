@@ -1,111 +1,115 @@
-from fastapi import FastAPI, status, HTTPException, Depends
-from pydantic import BaseModel
-import psycopg2
-from psycopg2.extras import RealDictCursor
+from fastapi import FastAPI, Request, status, HTTPException, Depends
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from . import models
-from .database import engine, SessionLocal
+from . import models, schemas
+from .database import engine, get_db
 
-models.Base.metadata.create_all(bind=engine)
-
+# Initialize FastAPI app
 app = FastAPI()
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Create tables in the database
+models.Base.metadata.create_all(bind=engine)
 
 
-class Post(BaseModel):
-    title: str
-    content: str
-    published: bool = True
+# Custom error handler for validation errors
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = []
+    for error in exc.errors():
+        field_path = " → ".join(str(loc) for loc in error["loc"])
+        errors.append({"field": field_path, "message": error["msg"]})
 
-
-# Connecting to database
-try:
-    conn = psycopg2.connect(
-        host="localhost",
-        database="fastapi",
-        user="postgres",
-        password="deve6426",
-        cursor_factory=RealDictCursor,
-    )
-    cursor = conn.cursor()
-    print("Connection successful to database")
-except Exception as error:
-    print("Error while connecting to PostgreSQL", error)
-    conn.close()
-
-
-def raise_exception(status_code, detail):
-    raise HTTPException(
-        status_code=status_code,
-        detail=detail,
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"success": False, "errors": errors},
     )
 
 
 @app.get("/")
 def root():
-    return {"message": "This is fast api project"}
-
-
-@app.get("/testing")
-def test_posts(db: Session = Depends(get_db)):
-    return {"message": "This is fast api project"}
+    return {"message": "This is a FastAPI project"}
 
 
 # Getting all posts
-@app.get("/posts")
-def get_posts():
-    cursor.execute("""SELECT * FROM posts""")
-    return {"data": cursor.fetchall()}
+@app.get("/posts", response_model=list[schemas.Post])
+def get_posts(db: Session = Depends(get_db)):
+    posts = db.query(models.Post).all()
+    return posts
 
 
-# Creating new post
-@app.post("/posts", status_code=status.HTTP_201_CREATED)
-def create_post(post: Post):
-    cursor.execute(
-        """INSERT INTO posts (title,content,published) VALUES (%s,%s,%s) RETURNING *""",
-        (post.title, post.content, post.published),
-    )
-    new_post = cursor.fetchone()
-    conn.commit()
-    return {"data": new_post}
+# Creating a new post
+@app.post(
+    "/posts", status_code=status.HTTP_201_CREATED, response_model=schemas.PostCreate
+)
+def create_post(
+    post: schemas.PostCreate,
+    db: Session = Depends(get_db),
+):
+    new_post = models.Post(**post.model_dump())
+    db.add(new_post)
+    db.commit()
+    db.refresh(new_post)
+    return new_post
 
 
-# Getting post with ID
-@app.get("/post/{id}")
-def get_post(id: int):
-    cursor.execute("""SELECT * FROM posts WHERE id = (%s)""", (id,))
-    post = cursor.fetchone()
+# Getting a post by ID
+@app.get("/post/{id}", response_model=schemas.Post)
+def get_post(id: int, db: Session = Depends(get_db)):
+    post = db.query(models.Post).filter(models.Post.id == id).first()
     if not post:
-        raise_exception(status.HTTP_404_NOT_FOUND, f"Their is no post with id: {id}")
-    return {"data": post}
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"There is no post with id: {id}",
+        )
+    return post
 
 
-# Delete post with ID
+# Delete post by ID
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(id: int):
-    cursor.execute("""DELETE FROM posts WHERE id = (%s) RETURNING *""", (id,))
-    deleted_post = cursor.fetchone()
-    conn.commit()
-    if not deleted_post:
-        raise_exception(status.HTTP_404_NOT_FOUND, f"Their is no post with id: {id}")
+def delete_post(id: int, db: Session = Depends(get_db)):
+    post_query = db.query(models.Post).filter(models.Post.id == id)
+    if not post_query.first():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"There is no post with id: {id}",
+        )
+    post_query.delete(synchronize_session=False)
+    db.commit()
+    return {"message": "Post deleted successfully"}
 
 
-# UPdate post with ID
-@app.put("/posts/{id}")
-def update_post(id: int, post: Post):
-    cursor.execute(
-        """UPDATE posts SET title = %s, content = %s, published = %s WHERE id = %s RETURNING *""",
-        (post.title, post.content, post.published, id),
-    )
-    updated_post = cursor.fetchone()
-    conn.commit()
-    if not updated_post:
-        raise_exception(status.HTTP_404_NOT_FOUND, f"Their is no post with id: {id}")
-    return {"data": updated_post}
+# Update post by ID
+@app.put("/posts/{id}", response_model=schemas.PostUpdate)
+def update_post(
+    id: int,
+    updated_post: schemas.PostUpdate,
+    db: Session = Depends(get_db),
+):
+    post_query = db.query(models.Post).filter(models.Post.id == id)
+    if not post_query.first():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"There is no post with id: {id}",
+        )
+    post_query.update(updated_post.model_dump(), synchronize_session=False)
+    db.commit()
+    return post_query.first()
+
+
+# Creating a new user
+@app.post(
+    "/users", status_code=status.HTTP_201_CREATED, response_model=schemas.UserCreate
+)
+def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    user_query = db.query(models.User).filter(models.User.email == user.email)
+    if user_query.first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Email already exists",
+        )
+    new_user = models.User(**user.model_dump())
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
