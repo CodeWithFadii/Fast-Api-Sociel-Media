@@ -33,3 +33,13 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     pass
+
+
+class UserLogin(UserBase):
+    pass
+
+
+class User(BaseModel):
+    id: int
+    email: EmailStr
+    created_at: datetime
