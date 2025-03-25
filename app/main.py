@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from . import models
-from .routers import post, user,auth
+from .routers import post, user, auth
 from .database import engine
 
 # Initialize FastAPI app

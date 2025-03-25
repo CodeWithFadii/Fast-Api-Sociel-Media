@@ -2,6 +2,43 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, EmailStr
 
+
+# User schema ------------------
+
+
+class UserBase(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class UserCreate(UserBase):
+    pass
+
+
+class UserLogin(UserBase):
+    pass
+
+
+class UserData(BaseModel):
+    id: int
+    email: EmailStr
+
+
+class User(BaseModel):
+    id: int
+    email: EmailStr
+    created_at: datetime
+
+
+class TokenData(BaseModel):
+    id: Optional[int] = None
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
 # Post schema ----------------
 
 
@@ -22,35 +59,5 @@ class PostUpdate(PostBase):
 class Post(PostBase):
     id: int
     created_at: datetime
-    user_id : int
-
-
-# User schema ------------------
-
-
-class UserBase(BaseModel):
-    email: EmailStr
-    password: str
-
-
-class UserCreate(UserBase):
-    pass
-
-
-class UserLogin(UserBase):
-    pass
-
-
-class User(BaseModel):
-    id: int
-    email: EmailStr
-    created_at: datetime
-
-
-class TokenData(BaseModel):
-    id: Optional[int] = None
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
+    user_id: int
+    user_data: UserData

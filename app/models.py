@@ -1,5 +1,6 @@
 from .database import Base
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Boolean, text
+from sqlalchemy.orm import relationship
 
 
 class Post(Base):
@@ -14,9 +15,10 @@ class Post(Base):
     user_id = Column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    user_data = relationship("User")  # Relation with User table to get user data
 
 
-class User(Base):
+class User(Base): 
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, nullable=False, unique=True)
