@@ -30,6 +30,9 @@ class User(BaseModel):
     created_at: datetime
 
 
+# JWT Token schema------------------
+
+
 class TokenData(BaseModel):
     id: Optional[int] = None
 
@@ -61,3 +64,14 @@ class Post(PostBase):
     created_at: datetime
     user_id: int
     user_data: UserData
+
+
+# Vote schema ----------------
+
+
+class LikeBase(BaseModel):
+    post_id: int
+
+
+class LikeCreate(LikeBase):
+    pass
