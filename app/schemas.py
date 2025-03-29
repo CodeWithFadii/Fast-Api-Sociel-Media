@@ -55,6 +55,7 @@ class PostCreate(PostBase):
     pass
 
 
+
 class PostUpdate(PostBase):
     pass
 
@@ -64,6 +65,7 @@ class Post(PostBase):
     created_at: datetime
     user_id: int
     user_data: UserData
+    likes_count: int
 
 
 # Vote schema ----------------

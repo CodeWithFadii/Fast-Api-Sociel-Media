@@ -34,6 +34,7 @@ app.include_router(like.router)
 
 
 
+
 @app.get("/")
 def root():
     return {"message": "This is a FastAPI project"}
