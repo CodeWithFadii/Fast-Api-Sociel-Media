@@ -65,7 +65,15 @@ class Post(PostBase):
     created_at: datetime
     user_id: int
     user_data: UserData
+    
+
+class PostOut(BaseModel):
+    Post: Post
     likes_count: int
+    
+    
+
+
 
 
 # Vote schema ----------------

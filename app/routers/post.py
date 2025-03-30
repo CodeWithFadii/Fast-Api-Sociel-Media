@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from app import models, oauth2, schemas
 from app.database import get_db
 from sqlalchemy import func
-from sqlalchemy.orm import joinedload
 
 router = APIRouter(prefix="/posts", tags=["Posts"])
 
@@ -11,44 +10,24 @@ router = APIRouter(prefix="/posts", tags=["Posts"])
 # Getting all posts
 
 
-@router.get("/", response_model=list[schemas.Post])
+@router.get("/", response_model=list[schemas.PostOut])
 def get_posts(
     db: Session = Depends(get_db),
     user_data: schemas.User = Depends(oauth2.get_current_user),
     limit: int = Query(10, ge=1, le=100),  # Users can set limit (1-100), default 10
     skip: int = Query(0, ge=0),  # Users can set skip (default 0)
 ):
-    posts_with_likes = (
-        db.query(
-            models.Post,
-            func.coalesce(func.count(models.Like.post_id), 0).label("likes_count"),
-        )
-        .outerjoin(models.Like, models.Post.id == models.Like.post_id)
-        .options(joinedload(models.Post.user_data))  # Ensure user data is loaded
+
+    posts = (
+        db.query(models.Post, func.count(models.Like.post_id).label("likes_count"))
+        .join(models.Like, models.Like.post_id == models.Post.id, isouter=True)
         .group_by(models.Post.id)
-        .offset(skip)
         .limit(limit)
+        .offset(skip)
         .all()
     )
 
-    # Convert result into a list of schemas.Post
-    result = [
-        schemas.Post(
-            id=post.id,
-            title=post.title,
-            content=post.content,
-            published=post.published,
-            created_at=post.created_at,
-            user_id=post.user_id,
-            user_data=schemas.UserData(
-                id=post.user_data.id, email=post.user_data.email
-            ),
-            likes_count=likes_count,
-        )
-        for post, likes_count in posts_with_likes
-    ]
-
-    return result
+    return posts
 
 
 # Creating a new post
@@ -66,13 +45,20 @@ def create_post(
 
 
 # Getting a post by ID
-@router.get("/{id}", response_model=schemas.Post)
+@router.get("/{id}", response_model=schemas.PostOut)
 def get_post(
     id: int,
     db: Session = Depends(get_db),
     user_data: schemas.User = Depends(oauth2.get_current_user),
 ):
-    post = db.query(models.Post).filter(models.Post.id == id).first()
+
+    post = (
+        db.query(models.Post, func.count(models.Like.post_id).label("likes_count"))
+        .join(models.Like, models.Like.post_id == models.Post.id, isouter=True)
+        .group_by(models.Post.id)
+        .filter(models.Post.id == id)
+        .first()
+    )
     if not post:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
