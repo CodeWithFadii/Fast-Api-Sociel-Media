@@ -67,6 +67,8 @@ def get_post(
     return post
 
 
+
+
 # Delete post by ID
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(
