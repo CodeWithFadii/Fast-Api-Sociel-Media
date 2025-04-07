@@ -18,6 +18,7 @@ app.add_middleware(
 )
 
 
+
 # Create tables in the database
 # models.Base.metadata.create_all(bind=engine) // no longer needed because we are using alembic to create tables
 

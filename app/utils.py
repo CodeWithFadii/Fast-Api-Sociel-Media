@@ -9,6 +9,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 database_url = f"postgresql://{settings.database_username}:{settings.database_password}@{settings.database_hostname}:{settings.database_port}/{settings.database_name}"
 
 
+
 def get_password_hash(password: str):
     return pwd_context.hash(password)
 

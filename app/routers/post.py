@@ -3,8 +3,46 @@ from sqlalchemy.orm import Session
 from app import models, oauth2, schemas
 from app.database import get_db
 from sqlalchemy import func
+from ..config import settings
+from fastapi import FastAPI, File, UploadFile
+import cloudinary
+import cloudinary.uploader
 
 router = APIRouter(prefix="/posts", tags=["Posts"])
+
+# Uploading image to cloudinary
+cloudinary.config(
+    cloud_name=settings.cloud_name,
+    api_key=settings.cloud_api_key,
+    api_secret=settings.cloud_api_secret,
+)
+
+
+@router.post("/upload-image")
+async def upload_image(file: UploadFile = File(...)):
+    # Read image bytes
+    image_data = await file.read()
+
+    # Upload with compression and auto-format
+    result = cloudinary.uploader.upload(
+        image_data,
+        resource_type="auto",
+        public_id=file.filename,
+        transformation=[
+            {
+                "quality": "auto",  # Auto-compress
+                "fetch_format": "auto",  # Use best format like WebP
+                "crop": "limit",
+            }
+        ],
+    )
+
+    return {
+        "public_id": result["public_id"],
+        "url": result["secure_url"],
+        "format": result["format"],
+        "bytes": result["bytes"],
+    }
 
 
 # Getting all posts
@@ -65,8 +103,6 @@ def get_post(
             detail=f"There is no post with id: {id}",
         )
     return post
-
-
 
 
 # Delete post by ID

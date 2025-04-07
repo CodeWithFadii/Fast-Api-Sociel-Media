@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     secret_key: str
     algorithm: str
     access_token_expires_minutes: int
+    cloud_name: str
+    cloud_api_key: int
+    cloud_api_secret: str
 
     class Config:
         env_file = ".env"
